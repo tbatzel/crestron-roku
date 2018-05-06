@@ -1,0 +1,149 @@
+/*
+	https://sdkdocs.roku.com/display/sdkdoc/External+Control+API
+*/
+
+#PRINT_TO_TRACE
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#ENCODING_ASCII
+              
+#DEFINE_CONSTANT debug 0
+
+
+
+DIGITAL_INPUT _skip_, key_Back, key_Home, key_Up, key_Down, key_Left, key_Right, key_InstantReplay, key_Select, key_Info, key_Rev, key_Play, key_Fwd;
+
+STRING_PARAMETER address[50];
+
+TCP_CLIENT tcp_Roku_Client[2000];                                  
+
+STRING g_Host[50];
+STRING g_Action[100];
+
+          
+
+FUNCTION connect() 
+{
+  	SIGNED_INTEGER status_err, status_discnt;
+                        
+    status_err = SOCKETCONNECTCLIENT(tcp_Roku_Client, g_Host, 8060, 0);
+	if(debug) print("Connection Status = %d", status_err);
+
+	if(status_err < 0)
+    {
+		print("Error: SocketConnectClient: Host(server name)");
+		if(debug) print("Error: Attempting disconnect");
+		status_discnt = SOCKETDISCONNECTCLIENT(tcp_Roku_Client);
+	 	if(debug) print("Disconnect Status = %d", status_discnt);
+		g_Action = "";
+	}
+
+}              
+        
+    
+
+
+//Events
+
+PUSH key_Back
+{
+	g_Action = "POST " + "/keypress/Back";
+}  
+PUSH key_Home
+{
+	g_Action = "POST " + "/keypress/Home";
+}  
+PUSH key_Up
+{
+	g_Action = "POST " + "/keypress/Up";
+}  
+PUSH key_Down
+{
+	g_Action = "POST " + "/keypress/Down";
+}  
+PUSH key_Left
+{
+	g_Action = "POST " + "/keypress/Left";
+}  
+PUSH key_Right
+{
+	g_Action = "POST " + "/keypress/Right";
+}  
+PUSH key_InstantReplay
+{
+	g_Action = "POST " + "/keypress/InstantReplay";
+}  
+PUSH key_Select
+{
+	g_Action = "POST " + "/keypress/Select";
+}  
+PUSH key_Info
+{
+	g_Action = "POST " + "/keypress/Info";
+}  
+PUSH key_Rev
+{
+	g_Action = "POST " + "/keypress/Rev";
+}  
+PUSH key_Play
+{
+	g_Action = "POST " + "/keypress/Play";
+}  
+PUSH key_Fwd
+{
+	g_Action = "POST " + "/keypress/Fwd";
+}  
+
+
+
+PUSH key_Back, key_Home, key_Up, key_Down, key_Left, key_Right, key_InstantReplay, key_Select, key_Info, key_Rev, key_Play, key_Fwd
+{
+	connect();
+}    
+ 
+
+
+SOCKETCONNECT tcp_Roku_Client
+{
+   SIGNED_INTEGER status_err;
+   STRING sCMD[255];
+
+   sCMD = g_Action + " HTTP/1.1" + "\n" + "Host: " + g_Host +"\n\n";
+      if(debug) print("POST Command = %s", sCMD);
+                                              
+   status_err = SOCKETSEND(tcp_Roku_Client, sCMD);
+      if(debug) print("Send Status = %d", status_err);
+
+	  if(status_err < 0)
+        {
+		print("Error: SocketConnect: Host+URL");
+		}
+}      
+       
+
+
+SOCKETRECEIVE tcp_Roku_Client       
+{
+	STRING sTemp_String[2000];
+  	SIGNED_INTEGER status_discnt;
+
+	if(debug) print("Received Len: %u", LEN(tcp_Roku_Client.SocketRxBuf));
+	if(debug) print("Received: %s", tcp_Roku_Client.SocketRxBuf);
+                                
+	CLEARBUFFER(tcp_Roku_Client.SocketRxBuf);         // Clear buffer
+	status_discnt = SOCKETDISCONNECTCLIENT(tcp_Roku_Client);  // Disconenct socket
+	if(debug) print("Disconnect Status = %d", status_discnt);
+	g_Action = "";
+}      
+              
+
+
+// Main
+Function Main()
+{
+    WaitForInitializationComplete();
+	g_Host = address;
+}
+
+
