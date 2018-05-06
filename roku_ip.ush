@@ -48,13 +48,15 @@
   InputSigType12=Digital
   InputCue13=key_Fwd
   InputSigType13=Digital
+  InputList2Cue1=launch_appid
+  InputList2SigType1=Serial
   ParamCue1=[Reference Name]
   ParamCue2=address
   ParamSigType2=String
   MinVariableInputs=13
   MaxVariableInputs=13
-  MinVariableInputsList2=0
-  MaxVariableInputsList2=0
+  MinVariableInputsList2=1
+  MaxVariableInputsList2=1
   MinVariableOutputs=0
   MaxVariableOutputs=0
   MinVariableOutputsList2=0
@@ -87,7 +89,6 @@
   SymJam=NonExclusive
   FileName=roku_ip.ush
   SIMPLPlusModuleEncoding=0
-  clz1=Crestron.RemoteServiceSimpl
 [END]
 [BEGIN]
   ObjTp=Dp

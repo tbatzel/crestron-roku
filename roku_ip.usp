@@ -14,6 +14,9 @@
 
 DIGITAL_INPUT _skip_, key_Back, key_Home, key_Up, key_Down, key_Left, key_Right, key_InstantReplay, key_Select, key_Info, key_Rev, key_Play, key_Fwd;
 
+STRING_INPUT launch_appid[12];
+
+
 STRING_PARAMETER address[50];
 
 TCP_CLIENT tcp_Roku_Client[2000];                                  
@@ -95,13 +98,17 @@ PUSH key_Fwd
 	g_Action = "POST " + "/keypress/Fwd";
 }  
 
-
-
 PUSH key_Back, key_Home, key_Up, key_Down, key_Left, key_Right, key_InstantReplay, key_Select, key_Info, key_Rev, key_Play, key_Fwd
 {
 	connect();
 }    
- 
+
+CHANGE launch_appid
+{
+	g_Action = "POST " + "/launch/" + launch_appid;
+	connect();
+}
+
 
 
 SOCKETCONNECT tcp_Roku_Client
