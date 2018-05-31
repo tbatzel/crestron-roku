@@ -1,0 +1,326 @@
+/*
+Tim Batzel
+*/
+
+
+//******************
+// Compiler Directives / Libraries
+//******************
+
+#default_volatile
+#enable_trace
+#print_to_trace
+
+#define_constant debug 0
+#define_constant maxRokuDevices 5
+#define_constant maxUDPLines 20
+
+                 
+
+//******************
+// Input / Outputs 
+//******************          
+
+DIGITAL_INPUT keepUDPEnabled, pollDevices;
+DIGITAL_INPUT _skip_, _skip_, debugList;
+
+STRING_INPUT rokuPrimarySerial[150];
+
+STRING_OUTPUT rokuPrimaryIp;
+
+
+STRING_OUTPUT rokuSerial[maxRokuDevices], rokuIP[maxRokuDevices], rokuLastSeen[maxRokuDevices];
+
+
+//******************
+// Sockets
+//******************   
+
+UDP_SOCKET MyUDP[1024];         
+
+
+
+//******************
+// Structures
+//******************
+
+STRUCTURE RokuDevice
+{
+	STRING serialnumber[150]; 		// USN: uuid:roku:ecp:YJ002J706204
+	STRING location[100];			// Location: http://192.168.70.140:8060/
+	STRING lastseen[25];			// YYYY/MM/DD HH:MM:SS
+};
+
+                                        
+
+
+
+//******************
+// Globals
+//******************
+
+STRING gsi_UDP_IPAddress[50];
+INTEGER gai_UDP_PortNumber;
+
+RokuDevice g_RokuDevices[maxRokuDevices];
+
+
+
+                     
+
+
+                           
+       
+//******************
+// Functions
+//******************
+
+
+STRING_FUNCTION timestamp()
+{
+	STRING datetime[30];
+	datetime = date(3) + " " + time();
+	return(datetime);
+}
+               
+
+INTEGER_FUNCTION findEmpty() 
+{
+	INTEGER i, emptyFound;
+	i = 0;
+	emptyFound = 0;
+	while(i < maxRokuDevices && !emptyFound) {
+		if(g_RokuDevices[i].serialnumber = "") emptyFound = 1;
+		else i = i + 1;
+	}
+	return(i);
+}
+
+
+
+
+
+FUNCTION updateDeviceList()
+{
+	INTEGER i;
+	for (i = 0 to maxRokuDevices-1)
+	{
+		rokuSerial[i+1]   = mid(g_RokuDevices[i].serialnumber, len("uuid:roku:ecp:")+1, len(g_RokuDevices[i].serialnumber)-len("uuid:roku:ecp:"));
+		rokuIP[i+1] 	  = mid(g_RokuDevices[i].location, len("http://")+1, len(g_RokuDevices[i].location)-len("http://")-len(":8060/"));
+		rokuLastSeen[i+1] = g_RokuDevices[i].lastseen;
+	}
+
+
+
+	// check existing list for serial number
+	for (i = 0 to maxRokuDevices)
+	{
+	if (lower(rokuPrimarySerial) = mid(g_RokuDevices[i].serialnumber, len("uuid:roku:ecp:")+1, len(g_RokuDevices[i].serialnumber)-len("uuid:roku:ecp:"))) 
+		{
+			rokuPrimaryIp = mid(g_RokuDevices[i].location, len("http://")+1, len(g_RokuDevices[i].location)-len("http://")-len(":8060/"));
+		}		
+	}  
+
+
+}       
+
+
+
+
+
+
+
+
+FUNCTION parseUDP(STRING rx)
+{
+	INTEGER startPos, startPosOld, i, existing, nextEmpty;
+    STRING lines[maxUDPLines][150];
+	STRING serialnum[150], location[100];
+	STRING line[150];
+
+	rx = lower(rx);
+
+	if (find("usn: uuid:roku:", rx))
+	{
+        startPos = 1;
+		startPosOld = 1;
+		do
+		{
+	        startPos = find("\n", rx, startPos+1);
+			if (startPos = 0) BREAK;
+        	lines[i] = mid(rx, startPosOld, startPos-startPosOld);
+        	startPosOld = startPos + len("\n");      
+			i = i + 1;
+		} until (i >= maxUDPLines);
+          
+		// find serial number and location
+		for	(i = 0 to maxUDPLines)
+		{
+			if (find("usn: uuid:roku", lines[i])) 
+			{
+				serialnum = lines[i];
+			}
+			else if (find("location: http", lines[i])) 
+			{
+				location = lines[i];
+			}
+		} 		
+                 
+		// check existing list for serial number
+		for (i = 0 to maxRokuDevices)
+		{
+			if (mid(serialnum, len("usn: ")+1, len(serialnum)-len("usn: ")) = g_RokuDevices[i].serialnumber) 
+			{
+				existing = i;
+			}		
+		}                   
+    
+		if (existing)
+		{
+			if(debug) print("existing device %d", existing);
+			g_RokuDevices[existing].serialnumber = mid(serialnum, len("usn: ")+1, len(serialnum)-len("usn: "));
+			g_RokuDevices[existing].location = mid(location, len("location: ")+1, len(location)-len("location: "));
+			g_RokuDevices[existing].lastseen = timestamp();
+		}
+		else
+		{
+			nextEmpty = FindEmpty();
+
+			if(debug) print("new device, next slot %d", nextEmpty);
+			
+			g_RokuDevices[nextEmpty].serialnumber = mid(serialnum, len("usn: ")+1, len(serialnum)-len("usn: "));
+			g_RokuDevices[nextEmpty].location = mid(location, len("location: ")+1, len(location)-len("location: "));
+			g_RokuDevices[nextEmpty].lastseen = timestamp();
+		}
+		updateDeviceList();
+	}
+}
+
+
+
+
+FUNCTION listenUDPSocket(integer enable)
+{
+    SIGNED_INTEGER status;
+    signed_integer iStatus;
+	string siUDP_Tx[1000];    
+
+	if (enable) 
+	{
+		if(debug) print("Enable UDP Socket");
+	    status = SocketUDP_Enable(MyUDP, gsi_UDP_IPAddress, gai_UDP_PortNumber);
+	}
+	else
+	{
+		if(debug) print("Disable UDP Socket");
+		status = SocketUDP_Disable (MyUDP);
+	}
+
+    if (status < 0)
+        if(debug) print("Error listening to %s on port  %d", gsi_UDP_IPAddress, gai_UDP_PortNumber);           
+}
+
+        
+
+FUNCTION pollRokuDevices()
+{
+    SIGNED_INTEGER status;
+    signed_integer iStatus;
+	string siUDP_Tx[1000];
+
+	if (!keepUDPEnabled) 
+	{
+		listenUDPSocket(1);
+	}
+
+	// SEND
+	if(debug) print("Send M-SEARCH on UDP Socket");
+    siUDP_Tx = "M-SEARCH * HTTP/1.1\nHost: " + gsi_UDP_IPAddress + ":" + itoa(gai_UDP_PortNumber) + "\nMan: \"ssdp:discover\"\nST: roku:ecp\n";
+    iStatus = SocketSend(MyUDP, siUDP_Tx );
+    if (iStatus < 0)
+        if(debug) print("Error Sending to MyUDP: %d\n", iStatus);
+      
+	if (!keepUDPEnabled) 
+	{
+		delay(1000);
+		listenUDPSocket(0);
+	}
+}
+
+
+
+
+
+//******************
+// Event Handlers 
+//******************
+
+
+SOCKETRECEIVE MyUDP
+{
+	STRING SenderIPAddress[50];
+
+	SocketGetSenderIPAddress(MyUDP, SenderIPAddress);
+  	if(debug) print("Multicast data received from %s\n", SenderIPAddress);      
+ 
+	parseUDP(MyUDP.SocketRxBuf);
+    ClearBuffer(MyUDP.SocketRxBuf);
+}
+
+             
+
+PUSH keepUDPEnabled
+{
+     listenUDPSocket(1);
+}
+
+
+RELEASE keepUDPEnabled
+{
+     listenUDPSocket(0);
+}
+
+
+PUSH pollDevices
+{
+	pollRokuDevices();
+}
+        
+
+CHANGE rokuPrimarySerial
+{
+    updateDeviceList();
+	pollRokuDevices();
+}
+
+
+
+PUSH debugList
+{
+	INTEGER i;
+
+	for (i = 0 to FindEmpty()-1)
+	{
+		print("Entry |%d|", i);
+		print("serialnumber: |%s|", mid(g_RokuDevices[i].serialnumber, len("uuid:roku:ecp:")+1, len(g_RokuDevices[i].serialnumber)-len("uuid:roku:ecp:"))    );
+		print("location: |%s|", 	mid(g_RokuDevices[i].location, len("http://")+1, len(g_RokuDevices[i].location)-len("http://")-len(":8060/"))   );
+		print("lastseen: |%s|", 		g_RokuDevices[i].lastseen);
+		print("-----");
+	}
+    updateDeviceList();
+}         
+
+
+
+//*******************
+// Main (Startup Code)
+//*******************
+
+Function Main()
+{
+    waitforinitializationcomplete();
+
+	gsi_UDP_IPAddress = "239.255.255.250";
+	gai_UDP_PortNumber = 1900;
+
+}
