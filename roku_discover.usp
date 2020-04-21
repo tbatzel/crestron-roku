@@ -59,6 +59,8 @@ STRUCTURE strucRokuDevice
 
 STRING gsi_UDP_IPAddress[50];
 
+NONVOLATILE STRING gsi_rokuPrimaryIp[75];
+
 INTEGER gai_UDP_PortNumber;
 
 strucRokuDevice g_RokuDevices[maxRokuDevices];
@@ -107,7 +109,8 @@ FUNCTION updateDeviceList()
 		if(debug) print ("%d   |%s| |%s| |%s|  |%s|\n", i, g_RokuDevices[i].serialNumber, g_RokuDevices[i].location, g_RokuDevices[i].ipAddress, g_RokuDevices[i].lastSeen);                
 		if (g_RokuDevices[i].serialNumber = lower(rokuPrimarySerial))
 		{
-			rokuPrimaryIp = g_RokuDevices[i].ipAddress;
+			gsi_rokuPrimaryIp = g_RokuDevices[i].ipAddress;
+			rokuPrimaryIp = gsi_rokuPrimaryIp;
 		}
  	}
 }
@@ -285,7 +288,8 @@ PUSH pollDevices
 
 CHANGE rokuPrimarySerial
 {  
-  updateDeviceList();
+	pollRokuDevices(); // remove this if startup is impacted
+	updateDeviceList();
 }
 
 
@@ -303,4 +307,5 @@ Function Main()
 	gsi_UDP_IPAddress = "239.255.255.250";
 	gai_UDP_PortNumber = 1900;
 
+	rokuPrimaryIp = gsi_rokuPrimaryIp;
 }
