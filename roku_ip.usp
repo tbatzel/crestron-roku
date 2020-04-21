@@ -14,10 +14,10 @@
 
 DIGITAL_INPUT _skip_, key_Back, key_Home, key_Up, key_Down, key_Left, key_Right, key_InstantReplay, key_Select, key_Info, key_Rev, key_Play, key_Fwd;
 
-STRING_INPUT launch_appid[12];
+STRING_INPUT launch_appid[12], inputAddress[75];
 
 
-STRING_PARAMETER address[50];
+STRING_PARAMETER parAddress[75];
 
 TCP_CLIENT tcp_Roku_Client[2000];                                  
 
@@ -109,7 +109,10 @@ CHANGE launch_appid
 	connect();
 }
 
-
+CHANGE inputAddress
+{
+	g_Host = inputAddress;
+}
 
 SOCKETCONNECT tcp_Roku_Client
 {
@@ -146,11 +149,21 @@ SOCKETRECEIVE tcp_Roku_Client
               
 
 
+
 // Main
 Function Main()
 {
     WaitForInitializationComplete();
-	g_Host = address;
+
+	if(len(parAddress))
+	{
+		g_Host = parAddress;
+	}
+	else
+	{
+		g_Host = inputAddress;
+	}
+
 }
 
 
