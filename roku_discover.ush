@@ -11,6 +11,19 @@
 [END]
 [BEGIN]
   ObjTp=Hd
+  Cmn1=pollDevices - Send SSDP query to network, to find Roku devices.||1
+  Cmn2=UDP socket is open for 10 seconds.\\\\keepUDPEnabled - Keeps the||1
+  Cmn3=UDP port open, any new multicast Roku traffic will be parsed. Typically||1
+  Cmn4=this should be left disabled.\\\\rokuPrimarySerial - Serial number||1
+  Cmn5=(not case sensitive) of the preferred Roku, used for matching.||2
+  Cmn6=Change to this value causes pollDevices to trigger.\\\\requireMatch||1
+  Cmn7=- If enabled, rokuPrimarySerial must match a found Roku.  If not||1
+  Cmn8=enabled, the Roku with the largest serial number (using SIMPL+ string||1
+  Cmn9=compare) is returned. \\\\\\rokuPrimaryIp - The ip address of the||1
+  Cmn10=primary found Roku, non-volatile variable that will persist past||1
+  Cmn11=a reboot.\\\\rokuPrimaryUrl - The URL of the primary found Roku,||1
+  Cmn12=non-volatile variable that will persist past a reboot.  Example:
+  Cmn13=||2http://192.168.1.101:8060/\\\\
 [END]
 [BEGIN]
   ObjTp=Symbol
@@ -26,19 +39,23 @@
   InputSigType1=Digital
   InputCue2=pollDevices
   InputSigType2=Digital
+  InputCue3=requireMatch
+  InputSigType3=Digital
   InputList2Cue1=rokuPrimarySerial
   InputList2SigType1=Serial
   OutputList2Cue1=rokuPrimaryIp
   OutputList2SigType1=Serial
+  OutputList2Cue2=rokuPrimaryUrl
+  OutputList2SigType2=Serial
   ParamCue1=[Reference Name]
-  MinVariableInputs=2
-  MaxVariableInputs=2
+  MinVariableInputs=3
+  MaxVariableInputs=3
   MinVariableInputsList2=1
   MaxVariableInputsList2=1
   MinVariableOutputs=0
   MaxVariableOutputs=0
-  MinVariableOutputsList2=1
-  MaxVariableOutputsList2=1
+  MinVariableOutputsList2=2
+  MaxVariableOutputsList2=2
   MinVariableParams=0
   MaxVariableParams=0
   Expand=expand_separately
